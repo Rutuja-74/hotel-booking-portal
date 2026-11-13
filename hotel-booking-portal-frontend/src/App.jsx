@@ -5,6 +5,7 @@ import Hotels from './pages/Hotels';
 import HotelDetails from './pages/HotelDetails';
 import BookingConfirmation from './pages/BookingConfirmation';
 import ManageBooking from './pages/ManageBooking';
+import SmartPicks from './pages/SmartPicks';
 import NotFound from './pages/NotFound';
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/hotels/:id" element={<HotelDetails />} />
         <Route path="/booking/:reference" element={<BookingConfirmation />} />
         <Route path="/manage-booking" element={<ManageBooking />} />
+        <Route path="/smart-picks" element={<SmartPicks />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

@@ -7,6 +7,7 @@ import { addDays, todayString, formatPrice } from '../utils/format';
 import Loader from '../components/Loader';
 import ErrorMessage from '../components/ErrorMessage';
 import BookingForm from '../components/BookingForm';
+import RecommendationList from '../components/RecommendationList';
 import '../styles/booking.css';
 
 // Hotel photo with a styled fallback when the image file does not exist
@@ -103,6 +104,8 @@ export default function HotelDetails() {
 
   const reload = () => setReloadKey((n) => n + 1);
 
+  const soldOut = hasDates && hotel && hotel.availableRooms === 0;
+
   return (
     <div className="container page">
       <Link to="/hotels" className="back-link">
@@ -113,97 +116,113 @@ export default function HotelDetails() {
       {!loading && error && <ErrorMessage message={error.message} onRetry={reload} />}
 
       {!loading && !error && hotel && (
-        <div className="details-layout">
-          {/* Left column: hotel information */}
-          <div>
-            <DetailsImage src={hotel.imageUrl} alt={hotel.name} />
-            <h1 className="details-title">{hotel.name}</h1>
-            <div className="details-meta">
-              <span>
-                <MapPin size={16} /> {hotel.city}, {hotel.state}
-              </span>
-              <span className="stars" aria-label={`${hotel.starRating} star hotel`}>
-                {Array.from({ length: hotel.starRating }).map((_, i) => (
-                  <Star key={i} size={16} fill="currentColor" />
-                ))}
-              </span>
-              <span>
-                <BedDouble size={16} /> {hotel.roomType}
-              </span>
-              <span>
-                <Users size={16} /> Up to {hotel.maxGuests} guests
-              </span>
+        <>
+          <div className="details-layout">
+            {/* Left column: hotel information */}
+            <div>
+              <DetailsImage src={hotel.imageUrl} alt={hotel.name} />
+              <h1 className="details-title">{hotel.name}</h1>
+              <div className="details-meta">
+                <span>
+                  <MapPin size={16} /> {hotel.city}, {hotel.state}
+                </span>
+                <span className="stars" aria-label={`${hotel.starRating} star hotel`}>
+                  {Array.from({ length: hotel.starRating }).map((_, i) => (
+                    <Star key={i} size={16} fill="currentColor" />
+                  ))}
+                </span>
+                <span>
+                  <BedDouble size={16} /> {hotel.roomType}
+                </span>
+                <span>
+                  <Users size={16} /> Up to {hotel.maxGuests} guests
+                </span>
+              </div>
+
+              <div className="details-section">
+                <h2>About this hotel</h2>
+                <p>{hotel.description}</p>
+              </div>
+
+              <div className="details-section">
+                <h2>Amenities</h2>
+                <ul className="amenity-list">
+                  {hotel.amenities.map((amenity) => (
+                    <li key={amenity}>
+                      <Check size={14} /> {amenity}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
 
-            <div className="details-section">
-              <h2>About this hotel</h2>
-              <p>{hotel.description}</p>
-            </div>
+            {/* Right column: dates, price, availability and booking form */}
+            <aside className="booking-panel">
+              <h2>{formatPrice(hotel.pricePerNight)} / night</h2>
 
-            <div className="details-section">
-              <h2>Amenities</h2>
-              <ul className="amenity-list">
-                {hotel.amenities.map((amenity) => (
-                  <li key={amenity}>
-                    <Check size={14} /> {amenity}
-                  </li>
-                ))}
-              </ul>
-            </div>
+              <DateForm
+                key={`${checkIn}-${checkOut}`}
+                initialCheckIn={checkIn}
+                initialCheckOut={checkOut}
+                onApply={applyDates}
+              />
+
+              {!hasDates && (
+                <p>
+                  Select your check-in and check-out dates to see availability and the total price.
+                </p>
+              )}
+
+              {soldOut && (
+                <p className="availability-note none">
+                  Sold out for these dates. See similar hotels below, or try different dates.
+                </p>
+              )}
+
+              {hasDates && hotel.availableRooms > 0 && (
+                <>
+                  <p className={`availability-note ${hotel.availableRooms <= 3 ? 'low' : ''}`}>
+                    {hotel.availableRooms <= 3
+                      ? `Hurry! Only ${hotel.availableRooms} room${hotel.availableRooms > 1 ? 's' : ''} left`
+                      : `${hotel.availableRooms} rooms available`}
+                  </p>
+
+                  <div className="price-row">
+                    <span>
+                      {formatPrice(hotel.pricePerNight)} x {hotel.nights} night
+                      {hotel.nights > 1 ? 's' : ''}
+                    </span>
+                    <span>{formatPrice(hotel.totalAmount)}</span>
+                  </div>
+                  <div className="price-row total">
+                    <span>Total amount</span>
+                    <span>{formatPrice(hotel.totalAmount)}</span>
+                  </div>
+
+                  <h2 style={{ marginTop: 20 }}>Your details</h2>
+                  <BookingForm
+                    hotel={hotel}
+                    checkIn={checkIn}
+                    checkOut={checkOut}
+                    onSoldOut={reload}
+                  />
+                </>
+              )}
+            </aside>
           </div>
 
-          {/* Right column: dates, price, availability and booking form */}
-          <aside className="booking-panel">
-            <h2>{formatPrice(hotel.pricePerNight)} / night</h2>
-
-            <DateForm
-              key={`${checkIn}-${checkOut}`}
-              initialCheckIn={checkIn}
-              initialCheckOut={checkOut}
-              onApply={applyDates}
-            />
-
-            {!hasDates && (
-              <p>Select your check-in and check-out dates to see availability and the total price.</p>
-            )}
-
-            {hasDates && hotel.availableRooms === 0 && (
-              <p className="availability-note none">
-                Sold out for these dates. Please try different dates.
-              </p>
-            )}
-
-            {hasDates && hotel.availableRooms > 0 && (
-              <>
-                <p className={`availability-note ${hotel.availableRooms <= 3 ? 'low' : ''}`}>
-                  {hotel.availableRooms <= 3
-                    ? `Hurry! Only ${hotel.availableRooms} room${hotel.availableRooms > 1 ? 's' : ''} left`
-                    : `${hotel.availableRooms} rooms available`}
-                </p>
-
-                <div className="price-row">
-                  <span>
-                    {formatPrice(hotel.pricePerNight)} x {hotel.nights} night
-                    {hotel.nights > 1 ? 's' : ''}
-                  </span>
-                  <span>{formatPrice(hotel.totalAmount)}</span>
-                </div>
-                <div className="price-row total">
-                  <span>Total amount</span>
-                  <span>{formatPrice(hotel.totalAmount)}</span>
-                </div>
-
-                <h2 style={{ marginTop: 20 }}>Your details</h2>
-                <BookingForm
-                  hotel={hotel}
-                  checkIn={checkIn}
-                  checkOut={checkOut}
-                  onSoldOut={reload}
-                />
-              </>
-            )}
-          </aside>
-        </div>
+          {/* Surprise feature: when this hotel is sold out, suggest similar available ones */}
+          {soldOut && (
+            <section className="details-section">
+              <RecommendationList
+                checkIn={checkIn}
+                checkOut={checkOut}
+                hotelId={hotel.id}
+                title="Similar hotels available for your dates"
+              />
+            </section>
+          )}
+        </>
       )}
     </div>
   );
