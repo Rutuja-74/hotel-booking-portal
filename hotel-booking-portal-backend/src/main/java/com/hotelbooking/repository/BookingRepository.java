@@ -15,6 +15,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     Optional<Booking> findByBookingReference(String bookingReference);
 
+    boolean existsByBookingReference(String bookingReference);
+
     // Overlap condition: existingCheckIn < requestedCheckOut AND existingCheckOut > requestedCheckIn
     @Query("SELECT new com.hotelbooking.dto.BookedPeriod(b.room.id, b.checkIn, b.checkOut) "
             + "FROM Booking b "

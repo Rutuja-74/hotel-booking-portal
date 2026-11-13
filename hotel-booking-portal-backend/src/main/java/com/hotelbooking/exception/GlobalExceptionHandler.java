@@ -25,6 +25,13 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    // The room exists but has no free capacity for the requested dates.
+    @ExceptionHandler(RoomNotAvailableException.class)
+    public ResponseEntity<ErrorResponse> handleRoomNotAvailable(RoomNotAvailableException ex,
+                                                                HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     // For example /api/hotels/abc, where the id should be a number
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex,
