@@ -6,13 +6,16 @@ import com.hotelbooking.entity.Room;
 import com.hotelbooking.exception.BadRequestException;
 import com.hotelbooking.exception.ResourceNotFoundException;
 import com.hotelbooking.repository.RoomRepository;
+import com.hotelbooking.validation.StayDateValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -22,39 +25,53 @@ public class HotelService {
             Set.of("BUDGET", "STANDARD", "PREMIUM", "LUXURY");
 
     private final RoomRepository roomRepository;
+    private final AvailabilityService availabilityService;
 
-    // Constructor injection: Spring passes in the repository for us.
-    public HotelService(RoomRepository roomRepository) {
+    public HotelService(RoomRepository roomRepository, AvailabilityService availabilityService) {
         this.roomRepository = roomRepository;
+        this.availabilityService = availabilityService;
     }
 
     @Transactional(readOnly = true)
     public List<HotelResponse> getAllHotels() {
         return roomRepository.findAllWithHotel().stream()
-                .map(this::toResponse)
+                .map(room -> toResponse(room, null, null, null))
                 .toList();
     }
 
+    // Dates are optional. With dates, the response also shows availability and the total price.
     @Transactional(readOnly = true)
-    public HotelResponse getHotelById(Long id) {
+    public HotelResponse getHotelById(Long id, LocalDate checkIn, LocalDate checkOut) {
+        boolean hasDates = validateOptionalDates(checkIn, checkOut);
+
         List<Room> rooms = roomRepository.findByHotelIdWithHotel(id);
         if (rooms.isEmpty()) {
             throw new ResourceNotFoundException("Hotel not found with id " + id);
         }
         // Each hotel has one room category in this project, so we use the first.
-        return toResponse(rooms.get(0));
+        Room room = rooms.get(0);
+
+        if (!hasDates) {
+            return toResponse(room, null, null, null);
+        }
+        int available = availabilityService.countAvailableRooms(room, checkIn, checkOut);
+        int nights = BookingCalculator.calculateNights(checkIn, checkOut);
+        BigDecimal total = BookingCalculator.calculateTotal(room.getPricePerNight(), nights);
+        return toResponse(room, available, nights, total);
     }
 
+    // With dates, only hotels that still have a free room for the whole stay are returned.
     @Transactional(readOnly = true)
     public List<HotelResponse> searchHotels(String location, String category,
                                             BigDecimal minPrice, BigDecimal maxPrice,
-                                            String sort) {
+                                            String sort, LocalDate checkIn, LocalDate checkOut) {
+        boolean hasDates = validateOptionalDates(checkIn, checkOut);
         String normalizedCategory = normalizeCategory(category);
         validatePriceRange(minPrice, maxPrice);
         Comparator<Room> comparator = buildComparator(sort);
         String searchText = (location == null) ? "" : location.trim().toLowerCase();
 
-        return roomRepository.findAllWithHotel().stream()
+        List<Room> matches = roomRepository.findAllWithHotel().stream()
                 .filter(room -> matchesLocation(room.getHotel(), searchText))
                 .filter(room -> normalizedCategory == null
                         || room.getHotel().getCategory().equals(normalizedCategory))
@@ -63,11 +80,38 @@ public class HotelService {
                 .filter(room -> maxPrice == null
                         || room.getPricePerNight().compareTo(maxPrice) <= 0)
                 .sorted(comparator)
-                .map(this::toResponse)
+                .toList();
+
+        if (!hasDates) {
+            return matches.stream()
+                    .map(room -> toResponse(room, null, null, null))
+                    .toList();
+        }
+
+        Map<Long, Integer> availability =
+                availabilityService.countAvailableRoomsForAll(matches, checkIn, checkOut);
+        int nights = BookingCalculator.calculateNights(checkIn, checkOut);
+
+        return matches.stream()
+                .filter(room -> availability.get(room.getId()) > 0)
+                .map(room -> toResponse(
+                        room,
+                        availability.get(room.getId()),
+                        nights,
+                        BookingCalculator.calculateTotal(room.getPricePerNight(), nights)))
                 .toList();
     }
 
     // ---------- helper methods ----------
+
+    // Returns false if no dates were given; throws 400 if only one date, or invalid dates, were given.
+    private boolean validateOptionalDates(LocalDate checkIn, LocalDate checkOut) {
+        if (checkIn == null && checkOut == null) {
+            return false;
+        }
+        StayDateValidator.validate(checkIn, checkOut, LocalDate.now());
+        return true;
+    }
 
     private boolean matchesLocation(Hotel hotel, String searchText) {
         if (searchText.isEmpty()) {
@@ -118,7 +162,8 @@ public class HotelService {
         };
     }
 
-    private HotelResponse toResponse(Room room) {
+    private HotelResponse toResponse(Room room, Integer availableRooms,
+                                     Integer nights, BigDecimal totalAmount) {
         Hotel hotel = room.getHotel();
         List<String> amenityList = Arrays.stream(hotel.getAmenities().split(","))
                 .map(String::trim)
@@ -139,7 +184,10 @@ public class HotelService {
                 room.getRoomType(),
                 room.getPricePerNight(),
                 room.getTotalRooms(),
-                room.getMaxGuests()
+                room.getMaxGuests(),
+                availableRooms,
+                nights,
+                totalAmount
         );
     }
 }

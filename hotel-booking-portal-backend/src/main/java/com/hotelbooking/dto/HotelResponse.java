@@ -17,6 +17,9 @@ public record HotelResponse(
         String roomType,
         BigDecimal pricePerNight,
         Integer totalRooms,
-        Integer maxGuests
+        Integer maxGuests,
+        Integer availableRooms,
+        Integer nights,
+        BigDecimal totalAmount
 ) {
 }
