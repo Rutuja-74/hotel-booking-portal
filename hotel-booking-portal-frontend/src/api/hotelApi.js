@@ -1,18 +1,30 @@
 import client from './client';
 
-// Remove empty values so we never send "location=" to the backend.
-function clean(params) {
-  const result = {};
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== '' && value !== null && value !== undefined) {
-      result[key] = value;
+// Remove empty values so we never send ?location=&category= to the backend
+function removeEmpty(params) {
+  const cleaned = {};
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      cleaned[key] = value;
     }
   });
-  return result;
+  return cleaned;
 }
 
-// GET /api/hotels/search?location=&checkIn=&checkOut=&category=&minPrice=&maxPrice=
+// GET /api/hotels/search
 export async function searchHotels(params, signal) {
-  const response = await client.get('/hotels/search', { params: clean(params), signal });
+  const response = await client.get('/hotels/search', {
+    params: removeEmpty(params),
+    signal,
+  });
+  return response.data;
+}
+
+// GET /api/hotels/{id}?checkIn=&checkOut=  (dates optional)
+export async function getHotel(id, params, signal) {
+  const response = await client.get(`/hotels/${id}`, {
+    params: removeEmpty(params),
+    signal,
+  });
   return response.data;
 }
