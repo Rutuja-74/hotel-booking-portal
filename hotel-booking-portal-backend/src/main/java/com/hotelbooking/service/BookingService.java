@@ -6,6 +6,7 @@ import com.hotelbooking.entity.Booking;
 import com.hotelbooking.entity.BookingStatus;
 import com.hotelbooking.entity.Hotel;
 import com.hotelbooking.entity.Room;
+import com.hotelbooking.exception.BookingStateException;
 import com.hotelbooking.exception.ResourceNotFoundException;
 import com.hotelbooking.exception.RoomNotAvailableException;
 import com.hotelbooking.repository.BookingRepository;
@@ -16,11 +17,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 public class BookingService {
 
     private static final int MAX_REFERENCE_ATTEMPTS = 5;
+
+    // Same message for "wrong reference" and "wrong email", so nothing is revealed.
+    private static final String BOOKING_NOT_FOUND_MESSAGE =
+            "Booking not found. Please check your booking reference and email address.";
 
     private final RoomRepository roomRepository;
     private final BookingRepository bookingRepository;
@@ -36,6 +42,8 @@ public class BookingService {
         this.availabilityService = availabilityService;
         this.referenceGenerator = referenceGenerator;
     }
+
+    // ---------- create ----------
 
     @Transactional
     public BookingResponse createBooking(BookingRequest request) {
@@ -79,6 +87,52 @@ public class BookingService {
         // 6. When this method returns, the transaction commits and the room lock is released.
     }
 
+    // ---------- retrieve ----------
+
+    @Transactional(readOnly = true)
+    public BookingResponse getBooking(String reference, String email) {
+        Booking booking = bookingRepository.findByReferenceWithDetails(normalizeReference(reference))
+                .filter(found -> emailMatches(found, email))
+                .orElseThrow(() -> new ResourceNotFoundException(BOOKING_NOT_FOUND_MESSAGE));
+        return toResponse(booking);
+    }
+
+    // ---------- cancel ----------
+
+    @Transactional
+    public BookingResponse cancelBooking(String reference, String email) {
+        // The booking row is locked first, so two simultaneous cancel requests
+        // are handled one after the other (the second one sees CANCELLED).
+        Booking booking = bookingRepository.findByReferenceForUpdate(normalizeReference(reference))
+                .filter(found -> emailMatches(found, email))
+                .orElseThrow(() -> new ResourceNotFoundException(BOOKING_NOT_FOUND_MESSAGE));
+
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new BookingStateException("This booking has already been cancelled.");
+        }
+        if (booking.getCheckIn().isBefore(LocalDate.now())) {
+            throw new BookingStateException(
+                    "This booking can no longer be cancelled because the check-in date has passed.");
+        }
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setCancelledAt(LocalDateTime.now());
+
+        // From now on this booking is ignored by the availability queries,
+        // so the room is released automatically.
+        return toResponse(bookingRepository.save(booking));
+    }
+
+    // ---------- helpers ----------
+
+    private String normalizeReference(String reference) {
+        return reference == null ? "" : reference.trim().toUpperCase();
+    }
+
+    private boolean emailMatches(Booking booking, String email) {
+        return email != null && booking.getCustomerEmail().equalsIgnoreCase(email.trim());
+    }
+
     private String generateUniqueReference() {
         for (int attempt = 0; attempt < MAX_REFERENCE_ATTEMPTS; attempt++) {
             String reference = referenceGenerator.generate();
@@ -89,7 +143,6 @@ public class BookingService {
         throw new IllegalStateException("Could not generate a unique booking reference.");
     }
 
-    // Also used by the retrieval and cancellation features in the next phase.
     public BookingResponse toResponse(Booking booking) {
         Room room = booking.getRoom();
         Hotel hotel = room.getHotel();

@@ -32,6 +32,13 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    // The booking exists but its state doesn't allow the action (e.g. already cancelled).
+    @ExceptionHandler(BookingStateException.class)
+    public ResponseEntity<ErrorResponse> handleBookingState(BookingStateException ex,
+                                                            HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     // For example /api/hotels/abc, where the id should be a number
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex,

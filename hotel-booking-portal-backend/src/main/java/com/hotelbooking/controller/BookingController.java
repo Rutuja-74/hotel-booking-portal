@@ -2,13 +2,17 @@ package com.hotelbooking.controller;
 
 import com.hotelbooking.dto.BookingRequest;
 import com.hotelbooking.dto.BookingResponse;
+import com.hotelbooking.dto.CancelBookingRequest;
 import com.hotelbooking.service.BookingService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -26,5 +30,19 @@ public class BookingController {
     public ResponseEntity<BookingResponse> createBooking(@Valid @RequestBody BookingRequest request) {
         BookingResponse response = bookingService.createBooking(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    // GET /api/bookings/HB-20261113-K7M2QX?email=guest@example.com
+    @GetMapping("/{reference}")
+    public BookingResponse getBooking(@PathVariable String reference,
+                                      @RequestParam String email) {
+        return bookingService.getBooking(reference, email);
+    }
+
+    // POST /api/bookings/HB-20261113-K7M2QX/cancel   body: { "email": "guest@example.com" }
+    @PostMapping("/{reference}/cancel")
+    public BookingResponse cancelBooking(@PathVariable String reference,
+                                         @Valid @RequestBody CancelBookingRequest request) {
+        return bookingService.cancelBooking(reference, request.email());
     }
 }
