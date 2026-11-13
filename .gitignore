@@ -1,0 +1,20 @@
+# Maven build output
+target/
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets (never commit these)
+.env
+*.env
+application-local.properties
+
+# Frontend (used later)
+node_modules/
+dist/
