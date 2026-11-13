@@ -6,7 +6,7 @@ import { isCancel } from '../api/client';
 import { formatPrice } from '../utils/format';
 import Loader from './Loader';
 import ErrorMessage from './ErrorMessage';
-import '../styles/recommend.css';
+import '../styles/Recommend.css';
 
 // Shows recommended hotels for the selected city, dates and budget.
 export default function RecommendationList({

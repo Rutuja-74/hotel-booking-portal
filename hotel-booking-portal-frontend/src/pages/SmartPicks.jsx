@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { addDays, todayString } from '../utils/format';
 import RecommendationList from '../components/RecommendationList';
-import '../styles/recommend.css';
+import '../styles/Recommend.css';
 
 export default function SmartPicks() {
   const [city, setCity] = useState('');
