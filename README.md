@@ -83,7 +83,7 @@ See `docs/screenshots/` (home, search results, hotel details, confirmation, mana
 - Prices are in INR; no payment integration.
 
 ## Approximate time spent
-About 10 hours, including learning Spring Boot and React along the way.
+About 11 hours, including learning Spring Boot and React along the way.
 
 ## Unfinished / known limitations
 - No real hotel photos (a styled placeholder is shown when an image is missing)
